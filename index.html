@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>טיסן אופק</title>
+<style>
+  :root{
+    --bg:#0b1016; --bg2:#121a24; --panel:rgba(18,26,36,.82);
+    --line:rgba(255,255,255,.10); --txt:#e9eef5; --dim:#9aa9bc;
+    --acc:#ff5a4d; --acc2:#54b8ff; --ok:#54d6a4;
+    --font: "Heebo","Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% 0%,#18222e 0%,var(--bg) 60%);
+       color:var(--txt);font-family:var(--font);overflow:hidden}
+  canvas{display:block;touch-action:none}
+  #stage{position:fixed;inset:0}
+
+  /* ---------- header ---------- */
+  header{position:fixed;top:0;inset-inline:0;padding:18px 22px;z-index:5;pointer-events:none;
+         background:linear-gradient(to bottom,rgba(8,12,17,.75),transparent)}
+  h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.5px}
+  h1 span{color:var(--acc)}
+  header p{margin:4px 0 0;color:var(--dim);font-size:13.5px}
+
+  /* ---------- side panel ---------- */
+  #panel{position:fixed;top:78px;inset-inline-start:16px;width:330px;max-height:calc(100vh - 170px);
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);
+    border-radius:16px;padding:12px;z-index:6;display:flex;flex-direction:column;gap:10px;
+    box-shadow:0 20px 50px rgba(0,0,0,.45)}
+  .ttl{font-size:12px;color:var(--dim);letter-spacing:.4px;padding:0 4px}
+  #list{overflow:auto;display:flex;flex-direction:column;gap:3px;padding-inline-end:4px}
+  #list::-webkit-scrollbar{width:7px}
+  #list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px}
+  .row{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:10px;cursor:pointer;
+       border:1px solid transparent;transition:background .14s,border-color .14s}
+  .row:hover{background:rgba(255,255,255,.07)}
+  .row.on{background:rgba(255,90,77,.14);border-color:rgba(255,90,77,.45)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+  .nm{flex:1;font-size:13.5px;font-weight:600}
+  .qt{font-size:11px;color:var(--dim)}
+  .pr{font-size:12.5px;color:var(--ok);font-variant-numeric:tabular-nums;font-weight:700}
+  .total{display:flex;justify-content:space-between;align-items:center;padding:10px 10px;
+    border-top:1px solid var(--line);margin-top:2px;font-weight:800}
+  .total b{color:var(--ok);font-size:17px}
+
+  /* ---------- detail card ---------- */
+  #detail{position:fixed;bottom:18px;inset-inline-start:16px;width:330px;z-index:6;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);
+    border-radius:16px;padding:14px;box-shadow:0 20px 50px rgba(0,0,0,.45);display:none}
+  #detail h3{margin:0 0 4px;font-size:16px}
+  #detail .p{color:var(--ok);font-weight:800;font-size:15px;margin-bottom:7px}
+  #detail p{margin:0;font-size:13px;line-height:1.65;color:#c7d3e2}
+  #detail .buy{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
+    display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+  #detail .buy a{display:inline-block;padding:5px 10px;border-radius:8px;text-decoration:none;
+    font-size:12px;font-weight:700;color:#cfe9ff;background:rgba(84,184,255,.14);
+    border:1px solid rgba(84,184,255,.35);transition:.15s}
+  #detail .buy a:hover{background:rgba(84,184,255,.28)}
+  #detail .x{position:absolute;top:10px;inset-inline-end:12px;color:var(--dim);cursor:pointer;
+    font-size:18px;line-height:1}
+
+  /* ---------- controls ---------- */
+  #ctl{position:fixed;bottom:18px;inset-inline-end:16px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;
+       justify-content:flex-end;max-width:60vw}
+  button{font-family:var(--font);font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);
+    padding:10px 14px;border-radius:11px;transition:.15s}
+  button:hover{background:rgba(255,255,255,.12)}
+  button.on{background:rgba(84,184,255,.2);border-color:rgba(84,184,255,.55);color:#cfe9ff}
+
+  /* ---------- tooltip ---------- */
+  #tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-135%);
+    background:rgba(10,15,21,.94);border:1px solid rgba(255,255,255,.16);border-radius:11px;
+    padding:8px 12px;transition:opacity .12s;white-space:nowrap;box-shadow:0 10px 26px rgba(0,0,0,.5)}
+  #tip b{display:block;font-size:14px}
+  #tip i{font-style:normal;color:var(--ok);font-size:12.5px;font-weight:700}
+
+  #hint{position:fixed;bottom:18px;inset-inline-start:50%;transform:translateX(50%);color:var(--dim);
+    font-size:12.5px;z-index:4;pointer-events:none;transition:opacity .4s}
+
+  @media (max-width:900px){
+    #panel{inset-inline:10px;width:auto;top:auto;bottom:10px;max-height:44vh}
+    #detail{inset-inline:10px;width:auto;bottom:auto;top:82px}
+    #ctl{top:82px;inset-inline-end:10px;bottom:auto;max-width:none}
+    #hint{display:none}
+    h1{font-size:21px}
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<header>
+  <h1>טיסן <span>אופק</span></h1>
+  <p>מודל תלת־ממדי לבנייה — עמוד על חלק כדי לראות מה הוא, וכמה הוא עולה · לחצו עליו לקישורי קנייה</p>
+</header>
+
+<div id="panel">
+  <div class="ttl">רשימת חלקים ומחירים</div>
+  <div id="list"></div>
+  <div class="total"><span>סה״כ לבנייה</span><b id="sum"></b></div>
+</div>
+
+<div id="detail">
+  <div class="x" onclick="clearSel()">✕</div>
+  <h3 id="dN"></h3>
+  <div class="p" id="dP"></div>
+  <p id="dD"></p>
+  <div class="buy"><span>קנייה אונליין:</span><span id="dL"></span></div>
+</div>
+
+<div id="ctl">
+  <button id="bRot" class="on">⟳ סיבוב אוטומטי</button>
+  <button id="bCut">◐ תצוגת חתך</button>
+  <button id="bRes">⌂ איפוס מבט</button>
+</div>
+
+<div id="tip"><b></b><i></i></div>
+<div id="hint">גררו כדי לסובב 360° · גלגלת לזום</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================ נתוני החלקים ============================ */
+const PARTS = {
+  tx:{s:"flysky fs-i6 transmitter 6ch rc", n:"שלט (משדר)", p:420, c:"#2b323c", q:"6 ערוצים",
+    d:"המשדר שביד שלך — הלב של השליטה. שתי הידיות (ג׳ויסטיקים) שולטות על ארבעה ערוצים: מצערת, הגה גובה, הגה כיוון ומאזנות. עובד ב-2.4GHz, וצריך לבצע \u2018בַּיינְדִּינְג\u2019 בין השלט למקלט בטיסן לפני הטיסה הראשונה. לרוב נמכר בערכה שכוללת כבר את המקלט, אז שים לב לא לקנות מקלט פעמיים."},
+  fuselage:{s:"rc plane balsa fuselage kit trainer", n:"גוף הטיסן",  p:180, c:"#eef2f7", q:"1 יח׳",
+    d:"שלד הטיסן עשוי דפרון/בלסה. מחזיק את הכנף, הזנב והמנוע ומכיל את כל האלקטרוניקה. זה החלק הראשון שבונים — הכול מתחבר אליו."},
+  wing:{s:"rc plane trainer wing kit balsa", n:"כנף ראשית", p:240, c:"#ffffff", q:"מוטת 2.7 מ׳",
+    d:"מייצרת את כוח העילוי. חתך הכנף (פרופיל) הוא מה שגורם לטיסן לעוף. בטיסן אימון הכנף גבוהה ורחבה — זה נותן יציבות ומחילה על טעויות."},
+  aileron:{s:"rc airplane aileron control horn set", n:"מאזנות", p:70, c:"#ff5a4d", q:"2 יח׳",
+    d:"משטחים נעים בקצה האחורי של הכנף. זזים הפוך זה לזה ומטים את הטיסן שמאלה/ימינה — כך מבצעים פניות."},
+  strut:{s:"rc plane aluminum wing strut", n:"מוטות חיזוק לכנף", p:40, c:"#b9c6d6", q:"2 יח׳",
+    d:"מוטות אלומיניום מהגוף אל תחתית הכנף. מעבירים את עומס העילוי לגוף ומונעים מהכנף להתעקם בפניות חדות."},
+  hstab:{s:"rc plane horizontal stabilizer balsa", n:"מייצב אופקי", p:60, c:"#ffffff", q:"1 יח׳",
+    d:"הכנף הקטנה בזנב. שומרת שהאף לא יעלה או ירד מעצמו — אחראית על היציבות בציר הגובה."},
+  elevator:{s:"rc plane elevator control surface hinge", n:"הגה גובה", p:45, c:"#ff5a4d", q:"1 יח׳",
+    d:"החלק הנע של המייצב האופקי. מרים או מוריד את האף — זה מה שמעלה ומוריד את הטיסן."},
+  fin:{s:"rc plane vertical stabilizer fin balsa", n:"מייצב אנכי", p:50, c:"#ffffff", q:"1 יח׳",
+    d:"הסנפיר העליון בזנב. מונע מהטיסן להתנדנד ימינה־שמאלה ושומר אותו טס ישר."},
+  rudder:{s:"rc plane rudder control horn set", n:"הגה כיוון", p:40, c:"#ff5a4d", q:"1 יח׳",
+    d:"החלק הנע של הסנפיר. מזיז את האף ימינה או שמאלה — עוזר בפניות מתואמות ובשליטה על הקרקע."},
+  motor:{s:"brushless motor 2212 2200kv rc plane", n:"מנוע ברשלס", p:160, c:"#3d4char", q:"1 יח׳",
+    d:"מנוע חשמלי ללא מברשות, בערך 2200KV. מותקן בחזית על משטח המנוע ומסובב את המדחף. בוחרים אותו לפי משקל הטיסן."},
+  prop:{s:"rc plane propeller 10x6", n:"מדחף", p:35, c:"#2b323c", q:"10x6 אינץ׳",
+    d:"הופך את סיבוב המנוע לדחף קדימה. הספרות הן קוטר וצעד — מדחף גדול מדי יעמיס על המנוע ועל הבקר."},
+  spinner:{s:"rc plane spinner 40mm", n:"חרוט מדחף", p:25, c:"#ff5a4d", q:"1 יח׳",
+    d:"הכיפה שמכסה את בורג המדחף. מקטינה גרר אווירודינמי ונותנת לטיסן מראה גמור."},
+  esc:{s:"40a brushless esc rc airplane bec", n:"בקר מהירות (ESC)", p:120, c:"#1f2630", q:"40A",
+    d:"מתווך בין הסוללה למנוע ומווסת את המהירות לפי הפקודה מהמקלט. חייב להיות בדירוג אמפר גבוה מהצריכה המרבית של המנוע."},
+  battery:{s:"lipo battery 3s 2200mah 25c xt60", n:"סוללת ליתיום (LiPo)", p:150, c:"#2f6fe0", q:"3S 2200mAh",
+    d:"מקור הכוח. 3S = שלושה תאים, בערך 11.1 וולט. מיקומה בגוף קובע את מרכז הכובד — מזיזים אותה קדימה/אחורה עד שהטיסן מאוזן."},
+  rx:{s:"rc receiver 6 channel 2.4ghz", n:"מקלט", p:90, c:"#2b7a55", q:"6 ערוצים",
+    d:"מקבל את האות מהשלט ומחלק פקודות לסרוואים ולבקר המהירות. צריך לפחות 4 ערוצים: מצערת, גובה, כיוון ומאזנות."},
+  servo:{s:"9g servo rc airplane mg90s metal gear", n:"סרוואים", p:180, c:"#c9ccd2", q:"4 יח׳",
+    d:"מנועים קטנים שמזיזים את משטחי ההיגוי. אחד לכל מאזנת, אחד להגה גובה ואחד להגה כיוון. מחוברים למשטחים במוטות דחיפה."},
+  gear:{s:"rc plane aluminum landing gear set", n:"כן נחיתה", p:80, c:"#aab6c4", q:"סט",
+    d:"רגלי אלומיניום או פיברגלס שסופגות את פגיעת הנחיתה. מתברגות לגוף דרך לוח חיזוק פנימי."},
+  wheel:{s:"rc plane foam wheels 3 inch", n:"גלגלים ראשיים", p:30, c:"#1c2028", q:"2 יח׳",
+    d:"גלגלי ספוג קלים בקוטר 3 אינץ׳. מאפשרים המראה מהקרקע ונחיתה מבוקרת."},
+  tailwheel:{s:"rc plane tail wheel assembly", n:"גלגל זנב", p:20, c:"#1c2028", q:"1 יח׳",
+    d:"גלגל קטן מתחת לזנב, לרוב מחובר להגה הכיוון — כך מכוונים את הטיסן בהסעה על המסלול."},
+  canopy:{s:"rc plane clear canopy cockpit", n:"חופה (תא טייס)", p:55, c:"#7fd4ff", q:"1 יח׳",
+    d:"כיסוי שקוף מעל הגוף. בטיסן אמיתי זה תא הטייס, כאן זה בעיקר מראה — ולעיתים פתח גישה לסוללה."}
+};
+PARTS.motor.c = "#3d4450";
+
+/* ============================ סצנה ============================ */
+const W=()=>innerWidth, H=()=>innerHeight;
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x0b1016, 12, 26);
+const camera=new THREE.PerspectiveCamera(42, W()/H(), .1, 100);
+const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.getElementById('stage').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xbcd4ff, 0x1b222c, .85));
+const key=new THREE.DirectionalLight(0xffffff,1.25);
+key.position.set(3,6,4); key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+const cs=key.shadow.camera; cs.left=-4.2;cs.right=4.2;cs.top=4.2;cs.bottom=-4.2;cs.near=.5;cs.far=20;
+scene.add(key);
+const rim=new THREE.DirectionalLight(0x6fb6ff,.55); rim.position.set(-4,2,-3); scene.add(rim);
+const fill=new THREE.DirectionalLight(0xffffff,.3); fill.position.set(0,-3,2); scene.add(fill);
+
+const floor=new THREE.Mesh(new THREE.CircleGeometry(6,64), new THREE.ShadowMaterial({opacity:.35}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-.62; floor.receiveShadow=true; scene.add(floor);
+
+/* ============================ בניית הטיסן ============================ */
+const plane=new THREE.Group(); scene.add(plane);
+const REG={};                                  // partId -> [meshes]
+function mat(hex,o={}){ return new THREE.MeshStandardMaterial({
+  color:hex, roughness:o.r??.55, metalness:o.m??.08,
+  transparent:!!o.t, opacity:o.t??1, side:o.side||THREE.FrontSide}); }
+function add(id, geo, material, pos, rot){
+  const m=new THREE.Mesh(geo, material);
+  if(pos) m.position.set(pos[0],pos[1],pos[2]);
+  if(rot) m.rotation.set(rot[0],rot[1],rot[2]);
+  m.castShadow=true; m.receiveShadow=true;
+  m.userData.id=id; m.userData.base=material.color.clone();
+  (REG[id] ||= []).push(m); plane.add(m); return m;
+}
+
+/* -- גוף -- */
+const prof=[[.05,0],[.075,.08],[.10,.28],[.14,.58],[.182,.88],[.212,1.15],[.222,1.42],[.212,1.63],[.172,1.79],[.105,1.88],[.02,1.92]]
+  .map(p=>new THREE.Vector2(p[0],p[1]));
+const fg=new THREE.LatheGeometry(prof,48);
+fg.rotateZ(-Math.PI/2); fg.translate(-.85,0,0);
+const fuseMat=mat(PARTS.fuselage.c,{r:.42});
+add('fuselage', fg, fuseMat);
+
+/* -- כנף -- */
+function airfoil(c,t){
+  const s=new THREE.Shape();
+  s.moveTo(0,0);
+  s.bezierCurveTo(c*.04,t*.80, c*.32,t*1.0, c*.58,t*.74);
+  s.bezierCurveTo(c*.80,t*.50, c*.94,t*.20, c,t*.02);
+  s.lineTo(c,-t*.02);
+  s.bezierCurveTo(c*.78,-t*.18, c*.42,-t*.28, c*.16,-t*.16);
+  s.bezierCurveTo(c*.07,-t*.10, c*.02,-t*.04, 0,0);
+  return s;
+}
+const SPAN=2.70, CHORD=.44;
+const wg=new THREE.ExtrudeGeometry(airfoil(CHORD,.062),{depth:SPAN,bevelEnabled:false,steps:1,curveSegments:24});
+wg.translate(0,0,-SPAN/2);
+add('wing', wg, mat(PARTS.wing.c,{r:.4}), [-.06,.205,0]);
+
+/* מאזנות */
+const ailMat=mat(PARTS.aileron.c,{r:.45});
+[[1],[-1]].forEach(([s])=>
+  add('aileron', new THREE.BoxGeometry(.115,.026,.80), ailMat, [.345,.205,s*.86]));
+
+/* מוטות חיזוק */
+const strutMat=mat(PARTS.strut.c,{r:.3,m:.75});
+[[1],[-1]].forEach(([s])=>
+  add('strut', new THREE.CylinderGeometry(.016,.016,.62,10), strutMat,
+      [.10,-.02,s*.42], [s*0.62,0,0]));
+
+/* -- זנב -- */
+const whiteMat=mat("#ffffff",{r:.4}), redMat=mat("#ff5a4d",{r:.45});
+add('hstab',    new THREE.BoxGeometry(.24,.026,1.02), whiteMat, [-.60,.03,0]);
+add('elevator', new THREE.BoxGeometry(.10,.022,1.00), redMat,   [-.775,.03,0]);
+
+const finS=new THREE.Shape();
+finS.moveTo(-.70,.10); finS.lineTo(-.70,.50); finS.lineTo(-.50,.50); finS.lineTo(-.44,.12); finS.closePath();
+const fgeo=new THREE.ExtrudeGeometry(finS,{depth:.026,bevelEnabled:false});
+fgeo.translate(0,0,-.013);
+add('fin', fgeo, whiteMat, [0,0,0]);
+
+const rudS=new THREE.Shape();
+rudS.moveTo(-.815,.09); rudS.lineTo(-.80,.47); rudS.lineTo(-.705,.50); rudS.lineTo(-.705,.10); rudS.closePath();
+const rgeo=new THREE.ExtrudeGeometry(rudS,{depth:.024,bevelEnabled:false});
+rgeo.translate(0,0,-.012);
+add('rudder', rgeo, redMat);
+
+/* -- מנוע / מדחף -- */
+add('motor', new THREE.CylinderGeometry(.088,.088,.13,28), mat(PARTS.motor.c,{r:.35,m:.85}),
+    [1.045,0,0],[0,0,Math.PI/2]);
+const hub=add('prop', new THREE.CylinderGeometry(.032,.032,.035,18), mat(PARTS.prop.c,{r:.5}),
+    [1.125,0,0],[0,0,Math.PI/2]);
+const propG=new THREE.Group(); propG.position.set(1.125,0,0); plane.add(propG);
+const blMat=mat(PARTS.prop.c,{r:.45});
+[1,-1].forEach(s=>{
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.03,.022,.50), blMat);
+  b.position.set(0,0,s*.27); b.rotation.x=s*.28; b.castShadow=true;
+  b.userData.id='prop'; b.userData.base=blMat.color.clone();
+  REG.prop.push(b); propG.add(b);
+});
+const sp=new THREE.ConeGeometry(.078,.15,26); sp.rotateZ(-Math.PI/2);
+add('spinner', sp, mat(PARTS.spinner.c,{r:.3,m:.2}), [1.215,0,0]);
+
+/* -- כן נחיתה -- */
+const gearMat=mat(PARTS.gear.c,{r:.35,m:.7});
+[[1],[-1]].forEach(([s])=>
+  add('gear', new THREE.CylinderGeometry(.021,.021,.50,10), gearMat, [.40,-.29,s*.15],[s*.55,0,0]));
+const whMat=mat(PARTS.wheel.c,{r:.85});
+[[1],[-1]].forEach(([s])=>
+  add('wheel', new THREE.CylinderGeometry(.115,.115,.055,26), whMat, [.40,-.49,s*.40],[Math.PI/2,0,0]));
+add('tailwheel', new THREE.CylinderGeometry(.05,.05,.03,18), whMat, [-.80,-.10,0],[Math.PI/2,0,0]);
+add('tailwheel', new THREE.CylinderGeometry(.012,.012,.12,8), gearMat, [-.80,-.03,0]);
+
+/* -- חופה -- */
+const cg=new THREE.SphereGeometry(.23,30,20,0,Math.PI*2,0,Math.PI/2);
+cg.scale(1.45,.78,.80);
+add('canopy', cg, mat(PARTS.canopy.c,{r:.06,m:.25,t:.42}), [.60,.14,0]);
+
+/* -- פנים (תצוגת חתך) -- */
+const inner=[];
+function addIn(id,geo,material,pos){ const m=add(id,geo,material,pos); m.visible=false; inner.push(m); return m; }
+addIn('battery', new THREE.BoxGeometry(.24,.085,.095), mat(PARTS.battery.c,{r:.5}), [.58,-.02,0]);
+addIn('esc',     new THREE.BoxGeometry(.11,.032,.055), mat(PARTS.esc.c,{r:.6}),     [.80,-.05,.04]);
+addIn('rx',      new THREE.BoxGeometry(.07,.026,.055), mat(PARTS.rx.c,{r:.6}),      [.24,.02,-.03]);
+const svMat=mat(PARTS.servo.c,{r:.5});
+[[-.10,-.02,.055],[-.10,-.02,-.055],[.14,.19,.62],[.14,.19,-.62]].forEach(p=>
+  addIn('servo', new THREE.BoxGeometry(.052,.052,.028), svMat, p));
+
+/* -- שלט -- */
+const txG=new THREE.Group();
+txG.position.set(-.30,-.425,1.78); txG.rotation.set(-.42,-.60,0); plane.add(txG);
+function txAdd(geo,material,pos,rot){
+  const m=new THREE.Mesh(geo,material);
+  if(pos) m.position.set(pos[0],pos[1],pos[2]);
+  if(rot) m.rotation.set(rot[0],rot[1],rot[2]);
+  m.castShadow=true; m.receiveShadow=true;
+  m.userData.id='tx'; m.userData.base=material.color.clone();
+  (REG.tx ||= []).push(m); txG.add(m); return m;
+}
+const txBody=mat("#252b34",{r:.55}), txTrim=mat("#39424f",{r:.5}),
+      txMetal=mat("#c9ccd2",{r:.35,m:.45}), txScr=mat("#4fd8a6",{r:.2});
+txAdd(new THREE.BoxGeometry(.34,.30,.09), txBody);
+txAdd(new THREE.BoxGeometry(.315,.275,.012), txTrim, [0,0,.048]);
+txAdd(new THREE.BoxGeometry(.135,.070,.014), txScr,  [0,.072,.056]);
+[1,-1].forEach(s=>{
+  txAdd(new THREE.CylinderGeometry(.038,.040,.014,20), txTrim,  [s*.088,-.038,.050],[Math.PI/2,0,0]);
+  txAdd(new THREE.CylinderGeometry(.013,.013,.072,12), txMetal, [s*.088,-.038,.088],[Math.PI/2,0,0]);
+  txAdd(new THREE.SphereGeometry(.020,16,12),           txMetal, [s*.088,-.038,.126]);
+  txAdd(new THREE.CylinderGeometry(.009,.009,.045,10), txMetal, [s*.115,.152,.020],[.35,0,0]);
+  txAdd(new THREE.BoxGeometry(.055,.022,.05),          txTrim,  [s*.145,-.155,.02]);
+});
+txAdd(new THREE.CylinderGeometry(.007,.007,.24,10), txMetal, [.125,.262,-.01],[0,0,-.30]);
+plane.position.y=.12;
+
+/* ============================ סיבוב 360 ============================ */
+let th=-0.9, ph=1.18, rad=4.5, drag=false, auto=true, px=0, py=0, pd=0, zoomed=false;
+/* מרחק מצלמה שמכניס את כל הדגם למסך, בכל יחס מסך */
+const _sph=new THREE.Box3().setFromObject(plane).getBoundingSphere(new THREE.Sphere());
+function fov(){ return innerWidth<innerHeight ? 52 : 42; }
+function fitRadius(){
+  const vf=THREE.MathUtils.degToRad(camera.fov)/2;
+  const hf=Math.atan(Math.tan(vf)*camera.aspect);
+  return _sph.center.length() + _sph.radius/Math.sin(Math.min(vf,hf))*1.04;
+}
+function applyFov(){ camera.fov=fov(); camera.updateProjectionMatrix(); }
+applyFov(); rad=fitRadius();
+function cam(){
+  camera.position.set(
+    rad*Math.sin(ph)*Math.cos(th),
+    rad*Math.cos(ph),
+    rad*Math.sin(ph)*Math.sin(th));
+  camera.lookAt(0,.05,0);
+}
+const el=renderer.domElement;
+el.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;el.setPointerCapture(e.pointerId);document.getElementById('hint').style.opacity=0;});
+el.addEventListener('pointerup',  ()=>drag=false);
+el.addEventListener('pointercancel',()=>drag=false);
+addEventListener('pointermove',e=>{
+  if(drag){
+    th -= (e.clientX-px)*.006;
+    ph  = Math.max(.12, Math.min(Math.PI-.12, ph - (e.clientY-py)*.006));
+    px=e.clientX; py=e.clientY;
+  }
+  pick(e.clientX,e.clientY);
+});
+const maxR=()=>Math.max(8,fitRadius()*1.6);
+el.addEventListener('wheel',e=>{e.preventDefault();zoomed=true;rad=Math.max(1.9,Math.min(maxR(),rad*(1+e.deltaY*.0013)));},{passive:false});
+el.addEventListener('touchstart',e=>{ if(e.touches.length===2) pd=dist(e); },{passive:true});
+el.addEventListener('touchmove',e=>{
+  if(e.touches.length===2){ const d=dist(e); if(pd){ zoomed=true; rad=Math.max(1.9,Math.min(maxR(),rad*pd/d)); } pd=d; }
+},{passive:true});
+function dist(e){const a=e.touches[0],b=e.touches[1];return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+
+/* ============================ בחירה והדגשה ============================ */
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2();
+const tip=document.getElementById('tip');
+let hov=null, sel=null;
+const $=id=>document.getElementById(id);
+const dN=$('dN'), dP=$('dP'), dD=$('dD'), dL=$('dL'), detail=$('detail');
+const all=()=>Object.values(REG).flat().filter(m=>m.visible);
+
+function paint(){
+  Object.entries(REG).forEach(([id,ms])=>{
+    const on = (id===hov) || (id===sel);
+    ms.forEach(m=>{
+      m.material.emissive.setHex(on ? (id===sel?0xff5a4d:0x3d7fbf) : 0x000000);
+      m.material.emissiveIntensity = on ? (id===sel?.55:.45) : 0;
+    });
+  });
+  document.querySelectorAll('.row').forEach(r=>
+    r.classList.toggle('on', r.dataset.id===sel || r.dataset.id===hov));
+}
+function pick(x,y){
+  ptr.x=(x/W())*2-1; ptr.y=-(y/H())*2+1;
+  ray.setFromCamera(ptr,camera);
+  const hit=ray.intersectObjects(all(),false)[0];
+  const id=hit? hit.object.userData.id : null;
+  if(id!==hov){ hov=id; paint(); }
+  if(id){
+    const P=PARTS[id];
+    tip.querySelector('b').textContent=P.n;
+    tip.querySelector('i').textContent=P.p.toLocaleString('he-IL')+' ₪ · '+P.q;
+    tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.opacity=1;
+    el.style.cursor='pointer';
+  } else { tip.style.opacity=0; el.style.cursor='grab'; }
+}
+el.addEventListener('click',()=>{ if(hov) select(hov); else clearSel(); });
+
+function select(id){
+  sel=id; const P=PARTS[id];
+  dN.textContent=P.n; dP.textContent=P.p.toLocaleString('he-IL')+' ₪  ·  '+P.q;
+  dD.textContent=P.d;
+  const q=encodeURIComponent(P.s);
+  dL.innerHTML=
+    '<a target="_blank" rel="noopener" href="https://www.aliexpress.com/wholesale?SearchText='+q+'">AliExpress</a>'+
+    '<a target="_blank" rel="noopener" href="https://www.amazon.com/s?k='+q+'">Amazon</a>'+
+    '<a target="_blank" rel="noopener" href="https://www.banggood.com/search/'+encodeURIComponent(P.s.replace(/ /g,'-'))+'.html">Banggood</a>';
+  detail.style.display='block'; paint();
+}
+function clearSel(){ sel=null; detail.style.display='none'; paint(); }
+window.clearSel=clearSel;
+
+/* ============================ רשימת חלקים ============================ */
+const list=document.getElementById('list');
+let sum=0;
+Object.entries(PARTS).forEach(([id,P])=>{
+  sum+=P.p;
+  const r=document.createElement('div');
+  r.className='row'; r.dataset.id=id;
+  r.innerHTML='<span class="dot" style="background:'+P.c+'"></span>'+
+              '<span class="nm">'+P.n+' <span class="qt">'+P.q+'</span></span>'+
+              '<span class="pr">'+P.p.toLocaleString('he-IL')+' ₪</span>';
+  r.onmouseenter=()=>{hov=id;paint();};
+  r.onmouseleave=()=>{hov=null;paint();};
+  r.onclick=()=>select(id);
+  list.appendChild(r);
+});
+document.getElementById('sum').textContent=sum.toLocaleString('he-IL')+' ₪';
+
+/* ============================ כפתורים ============================ */
+const bRot=document.getElementById('bRot'), bCut=document.getElementById('bCut');
+bRot.onclick=()=>{ auto=!auto; bRot.classList.toggle('on',auto); };
+let cut=false;
+bCut.onclick=()=>{
+  cut=!cut; bCut.classList.toggle('on',cut);
+  fuseMat.transparent=cut; fuseMat.opacity=cut?.17:1; fuseMat.needsUpdate=true;
+  inner.forEach(m=>m.visible=cut);
+  if(!cut && sel && ['battery','esc','rx','servo'].includes(sel)) clearSel();
+};
+document.getElementById('bRes').onclick=()=>{ th=-0.9; ph=1.18; rad=fitRadius(); zoomed=false; };
+
+/* ============================ לולאה ============================ */
+addEventListener('resize',()=>{camera.aspect=W()/H();applyFov();renderer.setSize(W(),H());if(!zoomed)rad=fitRadius();});
+(function loop(){
+  requestAnimationFrame(loop);
+  if(auto && !drag) th+=.0022;
+  scene.fog.near=rad+2.2; scene.fog.far=rad+11;
+  propG.rotation.x += auto? .22 : .05;
+  cam(); renderer.render(scene,camera);
+})();
+paint();
+</script>
+</body>
+</html>
